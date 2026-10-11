@@ -1,6 +1,7 @@
 
 /* ==========================================
    FLEXISOLE HERO ANIMATIONS
+   Responsive + Performance Optimized
 ========================================== */
 
 /* Entrance animation */
@@ -39,18 +40,15 @@
   animation-delay: 0.65s;
 }
 
-/* Slow cinematic image movement */
+/* Slow cinematic desktop image movement */
 @keyframes heroImageZoom {
-  0% {
+  0%,
+  100% {
     transform: scale(1);
   }
 
   50% {
     transform: scale(1.035);
-  }
-
-  100% {
-    transform: scale(1);
   }
 }
 
@@ -78,7 +76,8 @@
 
 /* Floating product badge */
 @keyframes heroFloat {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
 
@@ -93,7 +92,8 @@
 
 /* Sparkle animation */
 @keyframes heroSparkle {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.65;
     transform: rotate(0deg) scale(1);
   }
@@ -133,7 +133,8 @@
 
 /* Scroll indicator */
 @keyframes heroScroll {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
     opacity: 0.5;
   }
@@ -148,6 +149,18 @@
   animation: heroScroll 2s ease-in-out infinite;
 }
 
+/* Improve animation performance on smaller devices */
+@media (max-width: 767px) {
+  .hero-floating-badge {
+    animation-duration: 6s;
+  }
+
+  .hero-button:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
 /* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   .hero-entrance,
@@ -159,7 +172,7 @@
   .hero-scroll-indicator svg {
     animation: none !important;
     opacity: 1 !important;
-    transform: none;
+    transform: none !important;
   }
 
   .hero-button:hover {

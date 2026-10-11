@@ -9,9 +9,28 @@ import {
   Heart,
 } from "lucide-react";
 
+import {
+  cloudinaryAssets,
+  getCloudinaryUrl,
+} from "../../config/cloudinary";
+
 import "./HeroSection.css";
 
-const heroImage = "/images/hero/hero.png";
+// Optimized Cloudinary hero images
+const heroImageMobile = getCloudinaryUrl(
+  cloudinaryAssets.hero,
+  { width: 800 }
+);
+
+const heroImageTablet = getCloudinaryUrl(
+  cloudinaryAssets.hero,
+  { width: 1200 }
+);
+
+const heroImageDesktop = getCloudinaryUrl(
+  cloudinaryAssets.hero,
+  { width: 1920 }
+);
 
 const features = [
   {
@@ -35,10 +54,16 @@ export default function HeroSection() {
       {/* DESKTOP BACKGROUND */}
       <div className="absolute inset-0 hidden overflow-hidden lg:block">
         <img
-          src={heroImage}
+          src={heroImageDesktop}
+          srcSet={`
+            ${heroImageTablet} 1200w,
+            ${heroImageDesktop} 1920w
+          `}
+          sizes="100vw"
           alt=""
           aria-hidden="true"
           fetchPriority="high"
+          decoding="async"
           className="hero-image-zoom h-full w-full object-cover object-center"
         />
 
@@ -148,9 +173,15 @@ export default function HeroSection() {
         {/* MOBILE AND TABLET IMAGE */}
         <div className="relative w-full overflow-hidden lg:hidden">
           <img
-            src={heroImage}
+            src={heroImageMobile}
+            srcSet={`
+              ${heroImageMobile} 800w,
+              ${heroImageTablet} 1200w
+            `}
+            sizes="100vw"
             alt="FlexiSole slippers in cream and blush pink with a matching travel pouch"
             fetchPriority="high"
+            decoding="async"
             className="hero-image-mobile block aspect-[4/3] w-full object-cover object-[75%_center] sm:aspect-[16/9]"
           />
 
@@ -164,7 +195,10 @@ export default function HeroSection() {
         {/* DESKTOP FLOATING BADGE */}
         <div className="hero-floating-badge absolute bottom-10 right-10 hidden rounded-full border border-white/70 bg-white/90 px-6 py-4 shadow-xl backdrop-blur-md lg:block">
           <div className="flex items-center gap-2">
-            <Sparkles size={16} className="text-peach" />
+            <Sparkles
+              size={16}
+              className="text-peach"
+            />
 
             <span className="text-xs font-bold tracking-[0.12em] text-brand-900">
               MADE TO MOVE
@@ -179,7 +213,10 @@ export default function HeroSection() {
         aria-label="Scroll to featured products"
         className="hero-scroll-indicator absolute bottom-5 left-1/2 hidden -translate-x-1/2 text-brand-800/70 transition hover:text-brand-900 lg:block"
       >
-        <ArrowDown size={20} strokeWidth={1.5} />
+        <ArrowDown
+          size={20}
+          strokeWidth={1.5}
+        />
       </a>
 
       <div className="relative h-px bg-brand-900/5" />

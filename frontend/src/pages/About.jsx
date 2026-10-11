@@ -10,9 +10,28 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import {
+  cloudinaryAssets,
+  getCloudinaryUrl,
+} from "../config/cloudinary";
+
 import "./About.css";
 
-const aboutImage = "/images/about/about.png";
+// CLOUDINARY OPTIMIZED IMAGES
+const aboutImageMobile = getCloudinaryUrl(
+  cloudinaryAssets.about,
+  { width: 640 }
+);
+
+const aboutImageTablet = getCloudinaryUrl(
+  cloudinaryAssets.about,
+  { width: 1200 }
+);
+
+const aboutImageDesktop = getCloudinaryUrl(
+  cloudinaryAssets.about,
+  { width: 1920 }
+);
 
 const features = [
   {
@@ -44,16 +63,22 @@ const highlights = [
 export default function About() {
   return (
     <div className="min-h-screen bg-cream">
-
       {/* BLENDED ABOUT HERO */}
       <section className="about-hero relative isolate overflow-hidden bg-cream">
 
         {/* DESKTOP BACKGROUND IMAGE */}
         <div className="absolute inset-0 hidden lg:block">
           <img
-            src={aboutImage}
+            src={aboutImageDesktop}
+            srcSet={`
+              ${aboutImageTablet} 1200w,
+              ${aboutImageDesktop} 1920w
+            `}
+            sizes="100vw"
             alt=""
             aria-hidden="true"
+            loading="eager"
+            decoding="async"
             className="about-background-image h-full w-full object-cover object-center"
           />
 
@@ -103,10 +128,7 @@ export default function About() {
             {/* HIGHLIGHTS */}
             <div className="about-fade-up about-delay-4 mt-8 space-y-3">
               {highlights.map((item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-3"
-                >
+                <div key={item} className="flex items-center gap-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
                     <Check size={15} strokeWidth={2} />
                   </span>
@@ -137,9 +159,15 @@ export default function About() {
           {/* MOBILE / TABLET PHOTO */}
           <div className="about-mobile-visual relative w-full overflow-hidden lg:hidden">
             <img
-              src={aboutImage}
+              src={aboutImageMobile}
+              srcSet={`
+                ${aboutImageMobile} 640w,
+                ${aboutImageTablet} 1200w
+              `}
+              sizes="100vw"
               alt="FlexiSole collection featuring Classic, Cross-Strap and Double-Band slippers"
               loading="eager"
+              decoding="async"
               className="block aspect-[4/3] w-full object-cover object-center sm:aspect-[16/9]"
             />
 
@@ -158,7 +186,6 @@ export default function About() {
               </span>
             </div>
           </div>
-
         </div>
 
         <div className="relative h-px bg-brand-900/5" />

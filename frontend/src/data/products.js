@@ -1,4 +1,21 @@
 
+import {
+  cloudinaryAssets,
+  getProductCardImage,
+  getProductDetailImage,
+} from "../config/cloudinary";
+
+function createProductImages(source) {
+  const cardImage = getProductCardImage(source);
+  const detailImage = getProductDetailImage(source);
+
+  return {
+    image: cardImage,
+    images: [detailImage],
+    detailImage,
+  };
+}
+
 export const products = [
   {
     id: "flex-001",
@@ -8,8 +25,7 @@ export const products = [
     colorCode: "#F5C0A6",
     description: "Simple, comfy, always.",
     price: null,
-    image: "/images/products/classic-peach-nude.png",
-    images: ["/images/products/classic-peach-nude.png"],
+    ...createProductImages(cloudinaryAssets.classicPeachNude),
     sizes: [36, 37, 38, 39, 40, 41, 42],
     category: "Classic",
     badge: "BEST SELLER",
@@ -23,8 +39,7 @@ export const products = [
     colorCode: "#EADCC6",
     description: "Simple, comfy, always.",
     price: null,
-    image: "/images/products/classic-cream-beige.png",
-    images: ["/images/products/classic-cream-beige.png"],
+    ...createProductImages(cloudinaryAssets.classicCreamBeige),
     sizes: [36, 37, 38, 39, 40, 41, 42],
     category: "Classic",
     badge: "",
@@ -38,8 +53,7 @@ export const products = [
     colorCode: "#DFA0A2",
     description: "More style. Same comfort.",
     price: null,
-    image: "/images/products/cross-strap-dusty-pink.png",
-    images: ["/images/products/cross-strap-dusty-pink.png"],
+    ...createProductImages(cloudinaryAssets.crossStrapDustyPink),
     sizes: [36, 37, 38, 39, 40, 41, 42],
     category: "Cross-Strap",
     badge: "NEW",
@@ -53,8 +67,7 @@ export const products = [
     colorCode: "#A67C65",
     description: "More style. Same comfort.",
     price: null,
-    image: "/images/products/cross-strap-mocha-brown.png",
-    images: ["/images/products/cross-strap-mocha-brown.png"],
+    ...createProductImages(cloudinaryAssets.crossStrapMochaBrown),
     sizes: [36, 37, 38, 39, 40, 41, 42],
     category: "Cross-Strap",
     badge: "",
@@ -68,8 +81,7 @@ export const products = [
     colorCode: "#F0E8D8",
     description: "Trendy. Versatile. You.",
     price: null,
-    image: "/images/products/double-band-ivory-white.png",
-    images: ["/images/products/double-band-ivory-white.png"],
+    ...createProductImages(cloudinaryAssets.doubleBandIvoryWhite),
     sizes: [36, 37, 38, 39, 40, 41, 42],
     category: "Double-Band",
     badge: "",
@@ -83,8 +95,7 @@ export const products = [
     colorCode: "#C68D62",
     description: "Trendy. Versatile. You.",
     price: null,
-    image: "/images/products/double-band-caramel-tan.png",
-    images: ["/images/products/double-band-caramel-tan.png"],
+    ...createProductImages(cloudinaryAssets.doubleBandCaramelTan),
     sizes: [36, 37, 38, 39, 40, 41, 42],
     category: "Double-Band",
     badge: "",

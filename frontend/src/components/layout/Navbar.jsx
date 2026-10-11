@@ -11,6 +11,11 @@ import {
 
 import MobileMenu from "./MobileMenu";
 
+import {
+  cloudinaryAssets,
+  getLogoImage,
+} from "../../config/cloudinary";
+
 const navigation = [
   { name: "Home", path: "/" },
   { name: "Shop", path: "/shop" },
@@ -36,22 +41,20 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-50 w-full border-b border-brand-900/10 bg-cream/95 backdrop-blur-xl">
         <div className="mx-auto flex h-[70px] max-w-7xl items-center justify-between gap-4 px-5 sm:h-[76px] sm:px-8 lg:h-[82px] lg:px-10">
-
-          {/* FLEXISOLE LOGO */}
+          {/* FLEXISOLE CLOUDINARY LOGO */}
           <Link
             to="/"
             aria-label="FlexiSole homepage"
             className="flex h-full w-[115px] shrink-0 items-center justify-start sm:w-[145px] lg:w-[170px]"
           >
             <img
-              src="/images/branding/logo.png"
+              src={getLogoImage(cloudinaryAssets.logo)}
               alt="FlexiSole Logo"
-              className="block h-auto w-full max-w-full object-contain"
-              style={{
-                width: "100%",
-                maxHeight: "100px",
-                objectFit: "contain",
-              }}
+              width="500"
+              height="200"
+              decoding="async"
+              fetchPriority="high"
+              className="block h-auto max-h-[65px] w-full max-w-full object-contain sm:max-h-[70px] lg:max-h-[76px]"
             />
           </Link>
 
@@ -76,11 +79,12 @@ export default function Navbar() {
 
           {/* NAVBAR ACTIONS */}
           <div className="flex shrink-0 items-center gap-1 sm:gap-3">
-
             {/* SEARCH */}
             <button
               type="button"
-              aria-label={searchOpen ? "Close search" : "Search products"}
+              aria-label={
+                searchOpen ? "Close search" : "Search products"
+              }
               aria-expanded={searchOpen}
               onClick={() => setSearchOpen(!searchOpen)}
               className="flex h-10 w-10 items-center justify-center rounded-full text-brand-900 transition hover:bg-brand-100"
@@ -130,7 +134,10 @@ export default function Navbar() {
               onSubmit={handleSearch}
               className="mx-auto flex max-w-2xl items-center gap-3 rounded-full border border-brand-200 bg-white px-5 py-3"
             >
-              <Search size={20} className="shrink-0 text-brand-600" />
+              <Search
+                size={20}
+                className="shrink-0 text-brand-600"
+              />
 
               <input
                 type="search"
