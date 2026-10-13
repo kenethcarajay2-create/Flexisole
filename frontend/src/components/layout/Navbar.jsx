@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import MobileMenu from "./MobileMenu";
+import { useCart } from "../../context/CartContext";
 
 import {
   cloudinaryAssets,
@@ -27,6 +28,8 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const { itemCount } = useCart();
 
   function handleSearch(event) {
     event.preventDefault();
@@ -50,8 +53,6 @@ export default function Navbar() {
             <img
               src={getLogoImage(cloudinaryAssets.logo)}
               alt="FlexiSole Logo"
-              width="500"
-              height="200"
               decoding="async"
               fetchPriority="high"
               className="block h-auto max-h-[65px] w-full max-w-full object-contain sm:max-h-[70px] lg:max-h-[76px]"
@@ -82,18 +83,12 @@ export default function Navbar() {
             {/* SEARCH */}
             <button
               type="button"
-              aria-label={
-                searchOpen ? "Close search" : "Search products"
-              }
+              aria-label={searchOpen ? "Close search" : "Search products"}
               aria-expanded={searchOpen}
-              onClick={() => setSearchOpen(!searchOpen)}
+              onClick={() => setSearchOpen((current) => !current)}
               className="flex h-10 w-10 items-center justify-center rounded-full text-brand-900 transition hover:bg-brand-100"
             >
-              {searchOpen ? (
-                <X size={21} />
-              ) : (
-                <Search size={21} />
-              )}
+              {searchOpen ? <X size={21} /> : <Search size={21} />}
             </button>
 
             {/* ACCOUNT */}
@@ -105,13 +100,19 @@ export default function Navbar() {
               <UserRound size={21} />
             </Link>
 
-            {/* CART */}
+            {/* CART WITH LIVE COUNTER */}
             <Link
               to="/cart"
-              aria-label="Shopping cart"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-brand-900 transition hover:bg-brand-100"
+              aria-label={`Shopping cart with ${itemCount} items`}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full text-brand-900 transition hover:bg-brand-100"
             >
               <ShoppingBag size={22} />
+
+              {itemCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-[19px] min-w-[19px] items-center justify-center rounded-full bg-brand-900 px-1 text-[10px] font-bold text-white">
+                  {itemCount > 99 ? "99+" : itemCount}
+                </span>
+              )}
             </Link>
 
             {/* MOBILE MENU */}
@@ -134,18 +135,13 @@ export default function Navbar() {
               onSubmit={handleSearch}
               className="mx-auto flex max-w-2xl items-center gap-3 rounded-full border border-brand-200 bg-white px-5 py-3"
             >
-              <Search
-                size={20}
-                className="shrink-0 text-brand-600"
-              />
+              <Search size={20} className="shrink-0 text-brand-600" />
 
               <input
                 type="search"
                 placeholder="Search for slippers..."
                 value={searchQuery}
-                onChange={(event) =>
-                  setSearchQuery(event.target.value)
-                }
+                onChange={(event) => setSearchQuery(event.target.value)}
                 className="min-w-0 flex-1 bg-transparent text-sm text-brand-900 outline-none"
               />
 
@@ -160,7 +156,6 @@ export default function Navbar() {
         )}
       </header>
 
-      {/* MOBILE MENU */}
       <MobileMenu
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}

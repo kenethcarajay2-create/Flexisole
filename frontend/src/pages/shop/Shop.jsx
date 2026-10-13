@@ -1,12 +1,17 @@
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 
 import ProductCard from "../../components/product/ProductCard";
 
 import {
-  productGroups,
-  getProductGroupBySlug,
-} from "../../data/productGroups";
+  getPublishedProducts,
+  mapProductToGroup,
+} from "../../services/productService";
 
 const categories = [
   { label: "All Styles", value: "All" },
@@ -17,17 +22,68 @@ const categories = [
 
 export default function Shop() {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const allGroups = productGroups
-    .map((group) => getProductGroupBySlug(group.slug))
-    .filter((group) => group && group.variants.length > 0);
+  useEffect(() => {
+    let cancelled = false;
 
-  const filteredGroups =
-    activeCategory === "All"
-      ? allGroups
-      : allGroups.filter(
-          (group) => group.category === activeCategory
-        );
+    async function loadProducts() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const data = await getPublishedProducts();
+
+        if (!cancelled) {
+          setProducts(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err.message ||
+              "Unable to load products. Please try again."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadProducts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
+
+  const allGroups = useMemo(() => {
+    return products
+      .map(mapProductToGroup)
+      .filter((group) => group.variants.length > 0);
+  }, [products]);
+
+  const filteredGroups = useMemo(() => {
+    if (activeCategory === "All") {
+      return allGroups;
+    }
+
+    return allGroups.filter(
+      (group) => group.category === activeCategory
+    );
+  }, [allGroups, activeCategory]);
+
+  const availableCategories = categories.filter(
+    (category) =>
+      category.value === "All" ||
+      allGroups.some(
+        (group) => group.category === category.value
+      )
+  );
 
   return (
     <main className="min-h-screen bg-cream">
@@ -58,7 +114,9 @@ export default function Shop() {
             </h2>
 
             <p className="mt-2 text-sm text-brand-700/75">
-              Showing {filteredGroups.length} of {allGroups.length} styles
+              {loading
+                ? "Loading collection..."
+                : `Showing ${filteredGroups.length} of ${allGroups.length} styles`}
             </p>
           </div>
 
@@ -68,12 +126,16 @@ export default function Shop() {
             role="group"
             aria-label="Filter products by style"
           >
-            {categories.map((category) => (
+            {availableCategories.map((category) => (
               <button
                 key={category.value}
                 type="button"
-                onClick={() => setActiveCategory(category.value)}
-                aria-pressed={activeCategory === category.value}
+                onClick={() =>
+                  setActiveCategory(category.value)
+                }
+                aria-pressed={
+                  activeCategory === category.value
+                }
                 className={`rounded-full border px-5 py-2.5 text-xs font-semibold transition-colors sm:text-sm ${
                   activeCategory === category.value
                     ? "border-brand-900 bg-brand-900 text-white"
@@ -86,21 +148,88 @@ export default function Shop() {
           </div>
         </div>
 
+        {/* LOADING STATE */}
+        {loading && (
+          <div
+            role="status"
+            className="flex min-h-72 flex-col items-center justify-center gap-4 text-brand-700"
+          >
+            <Loader2
+              size={32}
+              className="animate-spin text-brand-600"
+            />
+            <p className="text-sm">
+              Loading FlexiSole products...
+            </p>
+          </div>
+        )}
+
+        {/* ERROR STATE */}
+        {!loading && error && (
+          <div
+            role="alert"
+            className="flex flex-col items-center rounded-3xl border border-red-100 bg-white px-6 py-16 text-center"
+          >
+            <AlertCircle
+              size={36}
+              className="text-red-500"
+            />
+
+            <h3 className="mt-4 text-xl font-semibold text-brand-900">
+              Unable to load products
+            </h3>
+
+            <p className="mt-3 max-w-md text-sm leading-7 text-brand-700">
+              {error}
+            </p>
+
+            <button
+              type="button"
+              onClick={() =>
+                setReloadKey((key) => key + 1)
+              }
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-brand-900 px-6 py-3 text-sm font-semibold text-white hover:bg-brand-800"
+            >
+              <RefreshCw size={17} />
+              Try Again
+            </button>
+          </div>
+        )}
+
         {/* PRODUCT CARDS */}
-        {filteredGroups.length > 0 ? (
+        {!loading && !error && filteredGroups.length > 0 && (
           <div className="grid grid-cols-1 gap-x-6 gap-y-12 sm:grid-cols-2 lg:grid-cols-3 lg:gap-x-8">
             {filteredGroups.map((group) => (
               <ProductCard
-                key={group.slug}
+                key={group.id}
                 group={group}
               />
             ))}
           </div>
-        ) : (
+        )}
+
+        {/* EMPTY STATE */}
+        {!loading && !error && filteredGroups.length === 0 && (
           <div className="rounded-3xl bg-brand-100 px-6 py-20 text-center">
-            <p className="text-brand-900">
-              No products found in this category.
+            <h3 className="text-lg font-semibold text-brand-900">
+              No products available
+            </h3>
+
+            <p className="mt-3 text-sm text-brand-700">
+              {allGroups.length === 0
+                ? "Our collection is being prepared. Check back soon."
+                : "No products found in this category."}
             </p>
+
+            {allGroups.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveCategory("All")}
+                className="mt-6 rounded-full bg-brand-900 px-6 py-3 text-sm font-semibold text-white"
+              >
+                View All Styles
+              </button>
+            )}
           </div>
         )}
       </section>
