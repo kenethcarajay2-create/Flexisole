@@ -1,5 +1,6 @@
 
 import geoip from "geoip-lite";
+import { isIP } from "node:net";
 
 import VisitorSession from "../models/VisitorSession.js";
 import PageView from "../models/PageView.js";
@@ -31,17 +32,53 @@ function getTodayStart() {
   );
 }
 
+function normalizeIp(value) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  let ip = value.trim();
+
+  if (ip.startsWith("::ffff:")) {
+    ip = ip.slice(7);
+  }
+
+  return isIP(ip) ? ip : "";
+}
+
+function getLocationLookupIp(req) {
+  // On Render's public onrender.com endpoint,
+  // Cloudflare normally supplies CF-Connecting-IP.
+  //
+  // Use it only for non-security analytics.
+  // Do not use it for authorization or rate limits.
+  //
+  // This assumes traffic is reaching the app through
+  // Render's Cloudflare-fronted public endpoint.
+
+  if (process.env.RENDER === "true") {
+    const cloudflareIp = normalizeIp(
+      req.get("cf-connecting-ip")
+    );
+
+    if (cloudflareIp) {
+      return cloudflareIp;
+    }
+  }
+
+  // Local development and fallback.
+  return normalizeIp(req.ip);
+}
+
 function getApproximateLocation(req) {
   try {
-    // Express determines the originating IP.
-    // The IP itself is never saved to MongoDB.
-    const ipAddress = req.ip;
+    const ip = getLocationLookupIp(req);
 
-    if (!ipAddress) {
+    if (!ip) {
       return null;
     }
 
-    const geo = geoip.lookup(ipAddress);
+    const geo = geoip.lookup(ip);
 
     if (
       !geo ||
@@ -71,14 +108,13 @@ function getApproximateLocation(req) {
       city: String(geo.city || "").slice(0, 100),
       region: String(geo.region || "").slice(0, 50),
 
-      // Round the estimated coordinates to
-      // approximately city / area-level precision.
+      // Approximate area rather than exact coordinates.
       lat: Math.round(latitude * 10) / 10,
       lng: Math.round(longitude * 10) / 10,
     };
   } catch (error) {
     console.warn(
-      "Visitor location lookup failed:",
+      "GeoIP lookup failed:",
       error.message
     );
 
@@ -130,8 +166,6 @@ export async function trackPageView(req, res, next) {
       });
     }
 
-    // Only approximately locate the visitor.
-    // Browser GPS permission is never requested.
     const location = getApproximateLocation(req);
 
     const insertFields = {
@@ -159,11 +193,10 @@ export async function trackPageView(req, res, next) {
         throw error;
       }
 
-      // Handle simultaneous requests attempting
-      // to create the same session.
-      const session = await VisitorSession.findOne({
-        sessionId,
-      });
+      const session =
+        await VisitorSession.findOne({
+          sessionId,
+        });
 
       if (
         !session ||
@@ -176,8 +209,6 @@ export async function trackPageView(req, res, next) {
       }
     }
 
-    // Make sure the session is associated with
-    // the visitor making this request.
     const verifiedSession =
       await VisitorSession.findOne({
         sessionId,
@@ -191,8 +222,8 @@ export async function trackPageView(req, res, next) {
       });
     }
 
-    // If this existing session had no location
-    // but one is now available, save it.
+    // Existing sessions can gain a location
+    // on their next tracked page view.
     if (
       location &&
       verifiedSession.location?.country !== "PH"
@@ -200,12 +231,13 @@ export async function trackPageView(req, res, next) {
       await VisitorSession.updateOne(
         { sessionId, visitorId },
         {
-          $set: { location },
+          $set: {
+            location,
+          },
         }
       );
     }
 
-    // Event IDs prevent duplicated page views.
     try {
       await PageView.create({
         eventId,
@@ -225,7 +257,9 @@ export async function trackPageView(req, res, next) {
     await VisitorSession.updateOne(
       { sessionId, visitorId },
       {
-        $inc: { pageViews: 1 },
+        $inc: {
+          pageViews: 1,
+        },
       }
     );
 
@@ -277,11 +311,15 @@ export async function getAnalyticsOverview(
       PageView.countDocuments(),
 
       VisitorSession.countDocuments({
-        createdAt: { $gte: todayStart },
+        createdAt: {
+          $gte: todayStart,
+        },
       }),
 
       VisitorSession.distinct("visitorId", {
-        lastSeenAt: { $gte: activeSince },
+        lastSeenAt: {
+          $gte: activeSince,
+        },
       }),
 
       PageView.aggregate([
@@ -301,7 +339,9 @@ export async function getAnalyticsOverview(
                 timezone: "Asia/Manila",
               },
             },
-            views: { $sum: 1 },
+            views: {
+              $sum: 1,
+            },
           },
         },
         {
@@ -338,7 +378,6 @@ export async function getAnalyticsOverview(
 
     return res.json({
       success: true,
-
       overview: {
         uniqueVisitors: uniqueVisitorIds.length,
         totalVisits,
@@ -346,7 +385,6 @@ export async function getAnalyticsOverview(
         visitsToday,
         activeVisitors: activeVisitorIds.length,
       },
-
       last7Days,
     });
   } catch (error) {
@@ -396,17 +434,13 @@ export async function getVisitorLocations(
       match.createdAt = {
         $gte: todayStart,
       };
-    }
-
-    if (period === "7d") {
+    } else if (period === "7d") {
       match.createdAt = {
         $gte: new Date(
           todayStart.getTime() - 6 * 86400000
         ),
       };
-    }
-
-    if (period === "30d") {
+    } else if (period === "30d") {
       match.createdAt = {
         $gte: new Date(
           todayStart.getTime() - 29 * 86400000
@@ -414,8 +448,6 @@ export async function getVisitorLocations(
       };
     }
 
-    // Group sessions by approximate location.
-    // Do not expose IP addresses or visitor IDs.
     const locations =
       await VisitorSession.aggregate([
         {
@@ -429,11 +461,9 @@ export async function getVisitorLocations(
               city: "$location.city",
               region: "$location.region",
             },
-
             visitorIds: {
               $addToSet: "$visitorId",
             },
-
             visits: {
               $sum: 1,
             },
@@ -442,16 +472,13 @@ export async function getVisitorLocations(
         {
           $project: {
             _id: 0,
-
             lat: "$_id.lat",
             lng: "$_id.lng",
             city: "$_id.city",
             region: "$_id.region",
-
             visitors: {
               $size: "$visitorIds",
             },
-
             visits: 1,
           },
         },
@@ -465,19 +492,15 @@ export async function getVisitorLocations(
         },
       ]);
 
-    const totalMappedVisits =
-      locations.reduce(
-        (total, location) =>
-          total + location.visits,
-        0
-      );
-
     return res.json({
       success: true,
       country: "PH",
       period,
       locations,
-      totalMappedVisits,
+      totalMappedVisits: locations.reduce(
+        (sum, item) => sum + item.visits,
+        0
+      ),
     });
   } catch (error) {
     next(error);
