@@ -56,11 +56,21 @@ const orderItemSchema = new Schema(
 
 const orderSchema = new Schema(
   {
+    // Registered customer who placed this order.
+    // Null for guest orders and older orders.
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true,
+    },
+
     orderNumber: {
       type: String,
       required: true,
       unique: true,
     },
+
     customer: {
       fullName: {
         type: String,
@@ -103,6 +113,7 @@ const orderSchema = new Schema(
         trim: true,
       },
     },
+
     items: {
       type: [orderItemSchema],
       required: true,
@@ -111,26 +122,31 @@ const orderSchema = new Schema(
         "An order must contain at least one item.",
       ],
     },
+
     subtotal: {
       type: Number,
       required: true,
       min: 0,
     },
+
     shippingFee: {
       type: Number,
       default: null,
       min: 0,
     },
+
     paymentMethod: {
       type: String,
       enum: ["COD"],
       default: "COD",
     },
+
     paymentStatus: {
       type: String,
       enum: ["Unpaid", "Paid"],
       default: "Unpaid",
     },
+
     status: {
       type: String,
       enum: [
@@ -149,6 +165,7 @@ const orderSchema = new Schema(
 
 orderSchema.index({ createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ userId: 1, createdAt: -1 });
 
 const Order = mongoose.model("Order", orderSchema);
 

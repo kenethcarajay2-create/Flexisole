@@ -1,22 +1,43 @@
 
 import { NavLink } from "react-router-dom";
+
 import {
   LayoutDashboard,
   Package,
   ShoppingBag,
   Store,
   X,
+  Settings,
 } from "lucide-react";
 
 const links = [
-  { label: "Dashboard", to: "/admin", icon: LayoutDashboard, end: true },
-  { label: "Products", to: "/admin/products", icon: Package },
-  { label: "Orders", to: "/admin/orders", icon: ShoppingBag },
+  {
+    label: "Dashboard",
+    to: "/admin",
+    icon: LayoutDashboard,
+    end: true,
+  },
+  {
+    label: "Products",
+    to: "/admin/products",
+    icon: Package,
+  },
+  {
+    label: "Orders",
+    to: "/admin/orders",
+    icon: ShoppingBag,
+  },
+  {
+    label: "Social Media Settings",
+    to: "/admin/settings/social",
+    icon: Settings,
+  },
 ];
 
 export default function AdminSidebar({ open, onClose }) {
   return (
     <>
+      {/* MOBILE OVERLAY */}
       {open && (
         <button
           type="button"
@@ -26,16 +47,19 @@ export default function AdminSidebar({ open, onClose }) {
         />
       )}
 
+      {/* SIDEBAR */}
       <aside
         className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-brand-900 text-white transition-transform duration-300 lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
+        {/* HEADER */}
         <div className="flex h-20 items-center justify-between border-b border-white/10 px-6">
           <div>
             <div className="text-xl font-bold tracking-tight">
               FlexiSole
             </div>
+
             <div className="text-xs text-white/60">
               Admin Panel
             </div>
@@ -51,7 +75,8 @@ export default function AdminSidebar({ open, onClose }) {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-2 p-4">
+        {/* NAVIGATION */}
+        <nav className="flex-1 space-y-2 overflow-y-auto p-4">
           {links.map(({ label, to, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -66,12 +91,14 @@ export default function AdminSidebar({ open, onClose }) {
                 }`
               }
             >
-              <Icon size={19} />
-              {label}
+              <Icon size={19} className="shrink-0" />
+
+              <span>{label}</span>
             </NavLink>
           ))}
         </nav>
 
+        {/* VIEW CUSTOMER WEBSITE */}
         <div className="border-t border-white/10 p-4">
           <NavLink
             to="/"

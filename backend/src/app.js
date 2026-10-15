@@ -1,3 +1,4 @@
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -10,32 +11,52 @@ import adminProductRoutes from "./routes/adminProductRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import adminOrderRoutes from "./routes/adminOrderRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+
+import {
+  publicSettingsRouter,
+  adminSettingsRouter,
+} from "./routes/storeSettingsRoutes.js";
 
 const app = express();
 
 app.disable("x-powered-by");
+
+// Render routes requests through a trusted reverse proxy.
+// In local development, Express uses the direct connection.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
 
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
+        "img-src": [
+          "'self'",
+          "data:",
+          "blob:",
+          "https://res.cloudinary.com",
+          "https://*.tile.openstreetmap.org",
+        ],
       },
     },
-  }),
+  })
 );
 
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
+const allowedOrigins = (
+  process.env.FRONTEND_URL || "http://localhost:5173"
+)
   .split(",")
-  .map((value) => value.trim())
+  .map((origin) => origin.trim())
   .filter(Boolean);
 
 app.use(
   cors({
     origin: allowedOrigins,
     credentials: true,
-  }),
+  })
 );
 
 app.use(express.json({ limit: "1mb" }));
@@ -46,10 +67,10 @@ app.use(
   "/api",
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 100,
+    limit: 200,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-  }),
+  })
 );
 
 app.use(
@@ -59,11 +80,7 @@ app.use(
     limit: 10,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    message: {
-      success: false,
-      message: "Too many login attempts. Try again later.",
-    },
-  }),
+  })
 );
 
 app.use(
@@ -73,11 +90,7 @@ app.use(
     limit: 10,
     standardHeaders: "draft-7",
     legacyHeaders: false,
-    message: {
-      success: false,
-      message: "Too many order requests. Try again later.",
-    },
-  }),
+  })
 );
 
 app.get("/api/health", (req, res) => {
@@ -87,13 +100,19 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// PUBLIC ROUTES
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/settings", publicSettingsRouter);
 
+// ADMIN ROUTES
 app.use("/api/admin/products", adminProductRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/uploads", uploadRoutes);
+app.use("/api/admin/analytics", analyticsRoutes);
+app.use("/api/admin/settings", adminSettingsRouter);
 
 app.use("/api", (req, res) => {
   res.status(404).json({

@@ -31,6 +31,7 @@ import {
 
 import { useCart } from "../../context/CartContext";
 import ProductCard from "../../components/product/ProductCard";
+import ProductReviews from "../../components/reviews/ProductReviews";
 
 function formatPrice(price) {
   if (typeof price !== "number" || !Number.isFinite(price)) {
@@ -698,6 +699,8 @@ export default function ProductDetails() {
             </div>
           </div>
         </div>
+
+        <ProductReviews slug={group.slug} />
 
         {/* RELATED STYLES */}
         {relatedGroups.length > 0 && (

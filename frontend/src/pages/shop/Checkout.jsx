@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 
 import { useCart } from "../../context/CartContext";
-import { createCustomerOrder } from "../../services/orderService";
+import { placeCustomerOrder } from "../../services/customerOrderService";
+import { useCustomerAuth } from "../../context/CustomerAuthContext";
 
 const initialCustomer = {
   fullName: "",
@@ -73,8 +74,19 @@ function Field({
 
 export default function Checkout() {
   const { items, itemCount, subtotal, clearCart } = useCart();
+  const { customer: signedInCustomer, token } = useCustomerAuth();
 
   const [customer, setCustomer] = useState(initialCustomer);
+
+  useEffect(() => {
+    if (signedInCustomer) {
+      setCustomer((current) => ({
+        ...current,
+        fullName: current.fullName || signedInCustomer.name || "",
+        email: signedInCustomer.email || "",
+      }));
+    }
+  }, [signedInCustomer]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [completedOrder, setCompletedOrder] = useState(null);
@@ -99,9 +111,10 @@ export default function Checkout() {
     setError("");
 
     try {
-      const response = await createCustomerOrder(
+      const response = await placeCustomerOrder(
         customer,
-        items
+        items,
+        token
       );
 
       if (!response.success || !response.order?.orderNumber) {
@@ -182,10 +195,10 @@ export default function Checkout() {
           </p>
 
           <Link
-            to="/shop"
+            to="/account/orders"
             className="mt-8 inline-flex items-center justify-center gap-2 rounded-full bg-brand-900 px-8 py-4 text-sm font-semibold text-white hover:bg-brand-800"
           >
-            Continue Shopping
+            View My Orders
             <ArrowRight size={18} />
           </Link>
         </div>

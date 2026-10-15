@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -7,7 +8,18 @@ import {
   Phone,
   Heart,
 } from "lucide-react";
-import { FaFacebookF, FaInstagram } from "react-icons/fa";
+import {
+  FaFacebookF,
+  FaInstagram,
+  FaTiktok,
+} from "react-icons/fa";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV
+    ? "http://localhost:5000/api"
+    : "/api")
+).replace(/\/$/, "");
 
 const quickLinks = [
   { label: "Home", path: "/" },
@@ -18,25 +30,88 @@ const quickLinks = [
 
 const customerLinks = [
   { label: "My Cart", path: "/cart" },
-  { label: "My Account", path: "/login" },
+  { label: "My Account", path: "/account" },
   { label: "Contact Support", path: "/contact" },
 ];
 
+const socialPlatforms = [
+  {
+    key: "facebook",
+    label: "Facebook",
+    icon: FaFacebookF,
+  },
+  {
+    key: "instagram",
+    label: "Instagram",
+    icon: FaInstagram,
+  },
+  {
+    key: "tiktok",
+    label: "TikTok",
+    icon: FaTiktok,
+  },
+];
+
 export default function Footer() {
+  const [socialLinks, setSocialLinks] = useState({
+    facebook: "",
+    instagram: "",
+    tiktok: "",
+  });
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadSocialLinks() {
+      try {
+        const response = await fetch(
+          `${API_URL}/settings`,
+          { signal: controller.signal }
+        );
+
+        if (!response.ok) {
+          throw new Error("Unable to load social links.");
+        }
+
+        const data = await response.json();
+
+        if (!controller.signal.aborted && data.success) {
+          setSocialLinks({
+            facebook: data.socialLinks?.facebook || "",
+            instagram: data.socialLinks?.instagram || "",
+            tiktok: data.socialLinks?.tiktok || "",
+          });
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          console.warn(
+            "Social media links unavailable:",
+            error
+          );
+        }
+      }
+    }
+
+    loadSocialLinks();
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <footer className="bg-brand-900 text-white">
-      {/* Main Footer */}
+      {/* MAIN FOOTER */}
       <div className="mx-auto max-w-7xl px-6 pb-12 pt-16 sm:px-8 lg:px-10 lg:pt-20">
         <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
-
-          {/* Brand Section */}
+          {/* BRAND */}
           <div className="lg:col-span-1">
             <Link
               to="/"
               className="inline-block text-4xl font-black tracking-[-0.06em]"
             >
               flexi
-              <span className="text-brand-300">sole.</span>
+              <span className="text-brand-300">
+                sole.
+              </span>
             </Link>
 
             <p className="mt-5 max-w-sm text-sm leading-7 text-white/60">
@@ -45,25 +120,35 @@ export default function Footer() {
               to move with you wherever life takes you.
             </p>
 
-            {/* Social Media */}
+            {/* SOCIAL MEDIA ICONS */}
             <div className="mt-7 flex items-center gap-3">
-              <span
-                title="Facebook page coming soon"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-white/60"
-              >
-                <FaFacebookF size={17} />
-              </span>
+              {socialPlatforms.map(
+                ({ key, label, icon: Icon }) => {
+                  const url = socialLinks[key];
 
-              <span
-                title="Instagram page coming soon"
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-white/60"
-              >
-                <FaInstagram size={19} />
-              </span>
+                  if (!url) {
+                    return null;
+                  }
+
+                  return (
+                    <a
+                      key={key}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`FlexiSole ${label}`}
+                      title={`Visit our ${label}`}
+                      className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 text-white/75 transition hover:border-brand-300 hover:bg-white/10 hover:text-white"
+                    >
+                      <Icon size={18} />
+                    </a>
+                  );
+                }
+              )}
             </div>
           </div>
 
-          {/* Quick Links */}
+          {/* EXPLORE */}
           <div>
             <h3 className="mb-6 text-sm font-bold uppercase tracking-[0.15em]">
               Explore
@@ -77,6 +162,7 @@ export default function Footer() {
                     className="group inline-flex items-center gap-2 text-sm text-white/60 transition-colors duration-200 hover:text-white"
                   >
                     {link.label}
+
                     <ArrowUpRight
                       size={14}
                       className="opacity-0 transition-opacity group-hover:opacity-100"
@@ -87,7 +173,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Customer Service */}
+          {/* CUSTOMER CARE */}
           <div>
             <h3 className="mb-6 text-sm font-bold uppercase tracking-[0.15em]">
               Customer Care
@@ -106,17 +192,10 @@ export default function Footer() {
               ))}
             </ul>
 
-            <div className="mt-7 flex flex-wrap gap-2">
-              <span className="rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/60">
-                Cash on Delivery
-              </span>
-              <span className="rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/60">
-                GCash
-              </span>
-            </div>
+            {/* COD AND GCASH BADGES REMOVED */}
           </div>
 
-          {/* Contact Section */}
+          {/* CONTACT */}
           <div>
             <h3 className="mb-6 text-sm font-bold uppercase tracking-[0.15em]">
               Get in Touch
@@ -162,10 +241,9 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Bottom Footer */}
+      {/* BOTTOM FOOTER */}
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-6 py-6 text-center sm:flex-row sm:px-8 lg:px-10">
-
           <p className="text-xs text-white/50">
             © {new Date().getFullYear()} FlexiSole.
             All rights reserved.
