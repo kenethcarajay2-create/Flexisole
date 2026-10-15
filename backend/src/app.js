@@ -18,13 +18,13 @@ import {
   adminSettingsRouter,
 } from "./routes/storeSettingsRoutes.js";
 
+import geoDiagnosticRoutes from "./routes/geoDiagnosticRoutes.js";
+
 const app = express();
-app.set("trust proxy", 1);
 
 app.disable("x-powered-by");
 
-// Render routes requests through a trusted reverse proxy.
-// In local development, Express uses the direct connection.
+// Render reverse proxy
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
@@ -114,6 +114,12 @@ app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/uploads", uploadRoutes);
 app.use("/api/admin/analytics", analyticsRoutes);
 app.use("/api/admin/settings", adminSettingsRouter);
+
+// TEMPORARY ADMIN GEOLOCATION DIAGNOSTIC
+app.use(
+  "/api/admin/geo-diagnostic",
+  geoDiagnosticRoutes
+);
 
 app.use("/api", (req, res) => {
   res.status(404).json({
