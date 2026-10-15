@@ -47,15 +47,6 @@ function normalizeIp(value) {
 }
 
 function getLocationLookupIp(req) {
-  // On Render's public onrender.com endpoint,
-  // Cloudflare normally supplies CF-Connecting-IP.
-  //
-  // Use it only for non-security analytics.
-  // Do not use it for authorization or rate limits.
-  //
-  // This assumes traffic is reaching the app through
-  // Render's Cloudflare-fronted public endpoint.
-
   if (process.env.RENDER === "true") {
     const cloudflareIp = normalizeIp(
       req.get("cf-connecting-ip")
@@ -66,11 +57,10 @@ function getLocationLookupIp(req) {
     }
   }
 
-  // Local development and fallback.
   return normalizeIp(req.ip);
 }
 
-function getApproximateLocation(req) {
+function getApproximateIpLocation(req) {
   try {
     const ip = getLocationLookupIp(req);
 
@@ -107,19 +97,57 @@ function getApproximateLocation(req) {
       country: "PH",
       city: String(geo.city || "").slice(0, 100),
       region: String(geo.region || "").slice(0, 50),
-
-      // Approximate area rather than exact coordinates.
       lat: Math.round(latitude * 10) / 10,
       lng: Math.round(longitude * 10) / 10,
     };
   } catch (error) {
     console.warn(
-      "GeoIP lookup failed:",
+      "IP geolocation unavailable:",
       error.message
     );
 
     return null;
   }
+}
+
+function getApproximateGpsLocation(location) {
+  if (
+    !location ||
+    typeof location !== "object" ||
+    Array.isArray(location)
+  ) {
+    return null;
+  }
+
+  const { lat, lng } = location;
+
+  if (
+    typeof lat !== "number" ||
+    typeof lng !== "number" ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return null;
+  }
+
+  if (
+    lat < PH_BOUNDS.south ||
+    lat > PH_BOUNDS.north ||
+    lng < PH_BOUNDS.west ||
+    lng > PH_BOUNDS.east
+  ) {
+    return null;
+  }
+
+  // Always round again on the server.
+  // We store approximate coordinates only.
+  return {
+    country: "PH",
+    city: "",
+    region: "",
+    lat: Math.round(lat * 10) / 10,
+    lng: Math.round(lng * 10) / 10,
+  };
 }
 
 // POST /api/analytics/track
@@ -130,14 +158,82 @@ export async function trackPageView(req, res, next) {
       sessionId,
       eventId,
       path,
+      locationOnly,
+      location,
     } = req.body || {};
 
+    // Both normal page-view events and GPS updates
+    // require valid visitor and session identifiers.
     if (
       typeof visitorId !== "string" ||
       typeof sessionId !== "string" ||
-      typeof eventId !== "string" ||
       !UUID_PATTERN.test(visitorId) ||
-      !UUID_PATTERN.test(sessionId) ||
+      !UUID_PATTERN.test(sessionId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid visitor session.",
+      });
+    }
+
+    // -----------------------------------------
+    // OPTIONAL GPS LOCATION UPDATE
+    // -----------------------------------------
+    //
+    // This request does not create a PageView,
+    // create a new visitor session, or increase
+    // any analytics counts.
+    //
+    if (locationOnly === true) {
+      const approximateLocation =
+        getApproximateGpsLocation(location);
+
+      if (!approximateLocation) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid Philippine location coordinates.",
+        });
+      }
+
+      // Only update an existing session that
+      // belongs to the supplied visitorId.
+      const updatedSession =
+        await VisitorSession.findOneAndUpdate(
+          {
+            sessionId,
+            visitorId,
+          },
+          {
+            $set: {
+              location: approximateLocation,
+              lastSeenAt: new Date(),
+            },
+          },
+          {
+            new: true,
+          }
+        );
+
+      if (!updatedSession) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Visitor session not found. Refresh the page and try again.",
+        });
+      }
+
+      return res.json({
+        success: true,
+        locationSaved: true,
+      });
+    }
+
+    // -----------------------------------------
+    // NORMAL PAGE-VIEW TRACKING
+    // -----------------------------------------
+    if (
+      typeof eventId !== "string" ||
       !UUID_PATTERN.test(eventId) ||
       typeof path !== "string" ||
       path.length > 200 ||
@@ -166,27 +262,32 @@ export async function trackPageView(req, res, next) {
       });
     }
 
-    const location = getApproximateLocation(req);
+    const ipLocation =
+      getApproximateIpLocation(req);
 
     const insertFields = {
       visitorId,
       pageViews: 0,
     };
 
-    if (location) {
-      insertFields.location = location;
+    if (ipLocation) {
+      insertFields.location = ipLocation;
     }
 
     try {
       await VisitorSession.updateOne(
-        { sessionId },
+        {
+          sessionId,
+        },
         {
           $setOnInsert: insertFields,
           $set: {
             lastSeenAt: new Date(),
           },
         },
-        { upsert: true }
+        {
+          upsert: true,
+        }
       );
     } catch (error) {
       if (error.code !== 11000) {
@@ -222,17 +323,22 @@ export async function trackPageView(req, res, next) {
       });
     }
 
-    // Existing sessions can gain a location
-    // on their next tracked page view.
+    // Save IP location only when the session
+    // does not already contain a Philippine
+    // location. This prevents later page views
+    // from overwriting a GPS-shared location.
     if (
-      location &&
+      ipLocation &&
       verifiedSession.location?.country !== "PH"
     ) {
       await VisitorSession.updateOne(
-        { sessionId, visitorId },
+        {
+          sessionId,
+          visitorId,
+        },
         {
           $set: {
-            location,
+            location: ipLocation,
           },
         }
       );
@@ -245,6 +351,8 @@ export async function trackPageView(req, res, next) {
         path,
       });
     } catch (error) {
+      // Duplicate events should not increase
+      // the page-view count again.
       if (error.code === 11000) {
         return res.json({
           success: true,
@@ -255,7 +363,10 @@ export async function trackPageView(req, res, next) {
     }
 
     await VisitorSession.updateOne(
-      { sessionId, visitorId },
+      {
+        sessionId,
+        visitorId,
+      },
       {
         $inc: {
           pageViews: 1,
@@ -270,7 +381,8 @@ export async function trackPageView(req, res, next) {
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "Please retry this analytics event.",
+        message:
+          "Please retry this analytics event.",
       });
     }
 
@@ -316,11 +428,14 @@ export async function getAnalyticsOverview(
         },
       }),
 
-      VisitorSession.distinct("visitorId", {
-        lastSeenAt: {
-          $gte: activeSince,
-        },
-      }),
+      VisitorSession.distinct(
+        "visitorId",
+        {
+          lastSeenAt: {
+            $gte: activeSince,
+          },
+        }
+      ),
 
       PageView.aggregate([
         {
@@ -360,7 +475,9 @@ export async function getAnalyticsOverview(
     );
 
     const last7Days = Array.from(
-      { length: 7 },
+      {
+        length: 7,
+      },
       (_, index) => {
         const date = new Date(
           todayStart.getTime() -
@@ -379,11 +496,13 @@ export async function getAnalyticsOverview(
     return res.json({
       success: true,
       overview: {
-        uniqueVisitors: uniqueVisitorIds.length,
+        uniqueVisitors:
+          uniqueVisitorIds.length,
         totalVisits,
         totalPageViews,
         visitsToday,
-        activeVisitors: activeVisitorIds.length,
+        activeVisitors:
+          activeVisitorIds.length,
       },
       last7Days,
     });
@@ -437,13 +556,15 @@ export async function getVisitorLocations(
     } else if (period === "7d") {
       match.createdAt = {
         $gte: new Date(
-          todayStart.getTime() - 6 * 86400000
+          todayStart.getTime() -
+            6 * 86400000
         ),
       };
     } else if (period === "30d") {
       match.createdAt = {
         $gte: new Date(
-          todayStart.getTime() - 29 * 86400000
+          todayStart.getTime() -
+            29 * 86400000
         ),
       };
     }
@@ -497,10 +618,12 @@ export async function getVisitorLocations(
       country: "PH",
       period,
       locations,
-      totalMappedVisits: locations.reduce(
-        (sum, item) => sum + item.visits,
-        0
-      ),
+      totalMappedVisits:
+        locations.reduce(
+          (sum, item) =>
+            sum + item.visits,
+          0
+        ),
     });
   } catch (error) {
     next(error);
