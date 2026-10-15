@@ -29,15 +29,40 @@ if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
 }
 
+
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+
+        "script-src": [
+          "'self'",
+          "https://accounts.google.com",
+          "https://apis.google.com",
+        ],
+
+        "frame-src": [
+          "'self'",
+          "https://accounts.google.com",
+        ],
+
+        "connect-src": [
+          "'self'",
+          "https://accounts.google.com",
+        ],
+
+        "style-src": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://accounts.google.com",
+        ],
+
         "img-src": [
           "'self'",
           "data:",
           "blob:",
+          "https://accounts.google.com",
           "https://res.cloudinary.com",
           "https://*.tile.openstreetmap.org",
         ],
@@ -45,6 +70,7 @@ app.use(
     },
   })
 );
+
 
 const allowedOrigins = (
   process.env.FRONTEND_URL || "http://localhost:5173"
